@@ -26,7 +26,7 @@ try {
         if (!$userData) {
             $mongoClient = new MongoDB\Client("mongodb://localhost:27017");
             $mongoDb = $mongoClient->internship_db; 
-            $userData = $mongoDb->users->findOne(['username' => $user]);
+            $userData = $mongoDb->profiles->findOne(['username' => $user]);
         }
 
         if ($userData) {
