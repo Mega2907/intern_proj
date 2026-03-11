@@ -1,35 +1,46 @@
-// 1. Always get the token first
-const token = localStorage.getItem('session_token');
+$(document).ready(function() {
+    // 1. Retrieve the token saved during login
+    const token = localStorage.getItem('session_token');
 
-// 2. Redirect if no token is found (Security check)
-if (!token) {
-    alert("Session expired. Please login again.");
-    window.location.href = "login.html";
-}
+    // 2. Security Check: If no token, kick them back to login
+    if (!token) {
+        alert("Please login first.");
+        window.location.href = "login.html";
+        return;
+    }
 
-// 3. Handle the form submission
-$('#profileForm').on('submit', function(e) {
-    e.preventDefault();
+    // 3. Handle Profile Update Form
+    $('#profileForm').on('submit', function(e) {
+        e.preventDefault();
 
-    $.ajax({
-        type: 'POST',
-        url: 'php/profile.php', // Use relative path (works on all devices)
-        data: $(this).serialize() + "&token=" + encodeURIComponent(token),
-        dataType: 'json', // Tells jQuery to expect JSON automatically
-        success: function(res) {
-            if (res.status === "success") {
-                alert(res.message);
-            } else {
-                alert("Error: " + res.message);
-                if (res.message.includes("expired")) {
-                    window.location.href = "login.html";
+        $.ajax({
+            type: 'POST',
+            url: 'php/profile.php', // Relative path is key for multi-device support
+            data: $(this).serialize() + "&token=" + encodeURIComponent(token),
+            success: function(response) {
+                // Parse response if it comes back as a string
+                let res = (typeof response === 'string') ? JSON.parse(response) : response;
+
+                if (res.status === "success") {
+                    alert("✅ Success: " + res.message);
+                } else {
+                    alert("❌ Error: " + res.message);
+                    if (res.message.includes("expired")) {
+                        window.location.href = "login.html";
+                    }
                 }
+            },
+            error: function(xhr) {
+                console.error("Connection error:", xhr.responseText);
+                alert("Could not connect to AWS server. Check your connection.");
             }
-        },
-        error: function(xhr) {
-            console.error("Status: " + xhr.status);
-            console.error("Response: " + xhr.responseText);
-            alert("Could not connect to the server. Please check your internet.");
-        }
+        });
+    });
+
+    // 4. Handle Logout specifically for other devices
+    $('#logoutBtn').on('click', function(e) {
+        e.preventDefault();
+        // Redirect to logout script with the current token
+        window.location.href = "php/logout.php?token=" + encodeURIComponent(token);
     });
 });
