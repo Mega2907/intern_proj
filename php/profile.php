@@ -1,16 +1,15 @@
 <?php
-
+// 1. Force HTTP and set Headers
 if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
     header("Location: http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
     exit();
 }
-// 1. Allow other devices to connect and force JSON output
+
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
 header('Content-Type: application/json');
 
-// Clear any accidental output/warnings
 ob_clean();
 
 // 2. Setup Paths
@@ -21,17 +20,21 @@ if (!file_exists($autoloadPath)) {
 }
 require_once $autoloadPath;
 
-// 3. Get Input
-$token   = $_POST['token'] ?? '';
-$age     = $_POST['age'] ?? '';
-$dob     = $_POST['dob'] ?? '';
-$contact = $_POST['contact'] ?? '';
-
+// 3. Connect to Redis & MongoDB
 try {
-    // REDIS SESSION CHECK
     $redis = new \Redis(); 
     $redis->connect('127.0.0.1', 6379);
     
+    $manager = new \MongoDB\Driver\Manager("mongodb://localhost:27017");
+
+    // Get token from either POST (saving) or GET (fetching)
+    $token = $_REQUEST['token'] ?? '';
+
+    if (empty($token)) {
+        echo json_encode(["status" => "error", "message" => "Token is missing."]);
+        exit;
+    }
+
     $username = $redis->get("session:" . $token);
 
     if (!$username) {
@@ -39,26 +42,52 @@ try {
         exit;
     }
 
-    // MONGODB UPDATE
-    $manager = new \MongoDB\Driver\Manager("mongodb://localhost:27017");
-    $bulk    = new \MongoDB\Driver\BulkWrite;
+    // --- SCENARIO A: FETCH DATA (GET REQUEST) ---
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        $query = new \MongoDB\Driver\Query(['username' => $username]);
+        $cursor = $manager->executeQuery('internship_db.profiles', $query);
+        $profile = current($cursor->toArray());
 
-    $bulk->update(
-        ['username' => $username],
-        ['$set' => [
-            'age'     => $age, 
-            'dob'     => $dob, 
-            'contact' => $contact
-        ]],
-        ['upsert' => true]
-    );
+        if ($profile) {
+            echo json_encode([
+                "status" => "success",
+                "data" => [
+                    "age" => $profile->age ?? '',
+                    "dob" => $profile->dob ?? '',
+                    "contact" => $profile->contact ?? ''
+                ]
+            ]);
+        } else {
+            echo json_encode(["status" => "success", "data" => null]);
+        }
+        exit;
+    }
 
-    $manager->executeBulkWrite('internship_db.profiles', $bulk);
-    
-    echo json_encode([
-        "status" => "success", 
-        "message" => "Profile updated successfully for " . $username
-    ]);
+    // --- SCENARIO B: SAVE DATA (POST REQUEST) ---
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $age     = $_POST['age'] ?? '';
+        $dob     = $_POST['dob'] ?? '';
+        $contact = $_POST['contact'] ?? '';
+
+        $bulk = new \MongoDB\Driver\BulkWrite;
+        $bulk->update(
+            ['username' => $username],
+            ['$set' => [
+                'age'     => $age, 
+                'dob'     => $dob, 
+                'contact' => $contact
+            ]],
+            ['upsert' => true]
+        );
+
+        $manager->executeBulkWrite('internship_db.profiles', $bulk);
+        
+        echo json_encode([
+            "status" => "success", 
+            "message" => "Profile updated successfully for " . $username
+        ]);
+        exit;
+    }
 
 } catch (\Exception $e) {
     echo json_encode(["status" => "error", "message" => "Server Error: " . $e->getMessage()]);

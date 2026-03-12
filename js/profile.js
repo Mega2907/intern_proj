@@ -2,7 +2,20 @@ $(document).ready(function() {
     // 1. Retrieve the token saved during login
     const token = localStorage.getItem('session_token');
 
-    // 2. Security Check: If no token, kick them back to login
+    $.ajax({
+        type: 'GET',
+        url: 'php/profile.php',
+        data: { token: token },
+        success: function(res) {
+            if (res.status === "success" && res.data) {
+            // Fill the input fields with saved data
+                $('input[name="age"]').val(res.data.age);
+                $('input[name="dob"]').val(res.data.dob);
+                $('input[name="contact"]').val(res.data.contact);
+            }
+        }
+    });
+
     if (!token) {
         alert("Please login first.");
         window.location.href = "login.html";

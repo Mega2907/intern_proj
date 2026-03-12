@@ -1,4 +1,9 @@
 <?php
+
+if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
+    header("Location: http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
+    exit();
+}
 header('Content-Type: application/json'); // Fixes the "undefined" error
 require '../vendor/autoload.php'; 
 

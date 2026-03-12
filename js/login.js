@@ -1,25 +1,28 @@
 $(document).ready(function() {
     $('#loginForm').on('submit', function(e) {
-        e.preventDefault(); // Prevents the page from refreshing
+        e.preventDefault();
 
         $.ajax({
             type: 'POST',
             url: 'php/login.php',
             data: $(this).serialize(),
             success: function(response) {
-                // Check if the PHP backend sent a "success" status
-                if (response.status === "success") {
-                    // REQUIREMENT: Save session to LocalStorage
-                    localStorage.setItem("session_token", response.token);
+                // This line ensures the response is treated as data, even if the server is glitchy
+                let res = (typeof response === 'string') ? JSON.parse(response) : response;
+
+                if (res.status === "success") {
+                    // 1. Save the token to the device memory
+                    localStorage.setItem("session_token", res.token);
                     
-                    // ACTION: Manually redirect to the profile page
-                    window.location.href = "profile.html";
+                    // 2. Force the browser to stay on the working HTTP path
+                    window.location.href = "http://13.51.172.237/profile.html";
                 } else {
-                    alert("Login failed: " + response.message);
+                    alert("Login failed: " + res.message);
                 }
             },
-            error: function() {
-                alert("Could not connect to the server. Is Apache running?");
+            error: function(xhr) {
+                console.error(xhr.responseText);
+                alert("Could not connect to the AWS server. Check your internet or if Apache is running.");
             }
         });
     });
