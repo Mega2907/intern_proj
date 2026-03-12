@@ -2,6 +2,12 @@ $(document).ready(function() {
     // 1. Retrieve the token saved during login
     const token = localStorage.getItem('session_token');
 
+    if (!token) {
+        alert("Please login first.");
+        window.location.href = "login.html";
+        return;
+    }
+
     $.ajax({
         type: 'GET',
         url: 'php/profile.php',
@@ -13,14 +19,8 @@ $(document).ready(function() {
                 $('input[name="dob"]').val(res.data.dob);
                 $('input[name="contact"]').val(res.data.contact);
             }
-        }
-    });
-
-    if (!token) {
-        alert("Please login first.");
-        window.location.href = "login.html";
-        return;
     }
+    });
 
     // 3. Handle Profile Update Form
     $('#profileForm').on('submit', function(e) {
